@@ -1,0 +1,273 @@
+CONTEXT THREAD AGENT - BUILD MILESTONE CHECKLIST
+================================================
+
+Phase 1: Foundation (Days 1-2)
+-----------------------------
+
+SETUP & INFRASTRUCTURE
+[ ] Initialize Git repo with proper structure
+    - /src → core logic
+    - /notebooks → sample notebooks for testing
+    - /tests → unit tests
+    - /data → example notebook JSON files
+    - /ui → Gradio app code
+
+[ ] Set up Python environment
+    - requirements.txt with: faiss, openai, pandas, pydantic, gradio
+    - Python 3.10+ environment
+    - .env for API keys (OpenAI)
+
+[ ] Create core data models (Pydantic)
+    - Cell (cell_id, type, content, output_summary, timestamp)
+    - ContextUnit (cell + intent + dependencies)
+    - ContextThread (list of ContextUnits + metadata)
+    - QueryRequest (user_query + thread_id)
+    - Response (answer + citations + sources)
+
+DATA PIPELINE
+[ ] Build notebook parser
+    - Read Jupyter .ipynb JSON
+    - Extract cells (code, markdown, raw)
+    - Extract outputs (text, tables, images)
+    - Build cell execution order
+
+[ ] Implement dependency detector
+    - Analyze imports, variable assignments
+    - Track which cells reference prior cell outputs
+    - Build directed acyclic graph (DAG)
+    - Write unit tests for cyclic detection
+
+Phase 2: Core Agent (Days 3-5)
+------------------------------
+
+INTENT INFERENCE
+[ ] Build intent extractor
+    - Lightweight LLM call: "Summarize the purpose of this cell in 1 sentence"
+    - Cache intent results (don't re-infer on every query)
+    - Handle failures gracefully ("Intent unclear")
+
+[ ] Add optional user intent override
+    - CLI or UI input: "Correct intent: [user input]"
+    - Store overrides separately from LLM inferred intent
+    - Prefer user intent in retrieval weighting
+
+CONTEXT INDEXING
+[ ] Build FAISS vector indexer
+    - Embed cell content using OpenAI embeddings API (or open-source)
+    - Embed intent summary
+    - Embed output summary
+    - Create composite embedding (weighted combination)
+    - Store embeddings + metadata in FAISS
+
+[ ] Build metadata index (SQLite)
+    - Schema: cell_id, type, intent, dependencies (JSON), timestamp
+    - Query by cell_id, type, timestamp range
+    - Index dependencies for fast traversal
+
+[ ] Build dependency graph
+    - Adjacency list representation
+    - Methods: get_upstream_cells(), get_downstream_cells()
+    - Topological sort for dependency order
+
+RETRIEVAL ENGINE
+[ ] Implement multi-stage retrieval
+    - Semantic search: query embedding → top-k cells from FAISS
+    - Dependency expansion: for each retrieved cell, add upstream cells (up to depth=2)
+    - Recency weighting: boost recent cells
+    - Cell-type weighting: markdown + comments > execution results
+    - Hard context limit: max 5,000 tokens total
+
+[ ] Add context windowing logic
+    - Build final context string from retrieved cells
+    - Enforce token limit (GPT-4 max ~3,000 tokens)
+    - Return both retrieved cells AND metadata (for citations)
+
+[ ] Write retrieval tests
+    - Test semantic search on sample queries
+    - Test dependency expansion correctness
+    - Test context limit enforcement
+
+LLM REASONING LAYER
+[ ] Build query handler
+    - System prompt: "You are a notebook analyst. Answer questions ONLY from provided context. Always cite cells. Say 'not enough context' if needed."
+    - Input: user query + retrieved context
+    - Output: LLM response + citation objects
+
+[ ] Implement citation parser
+    - Extract "Cell N" references from LLM response
+    - Map to actual cell metadata
+    - Format response with hyperlinks/references
+
+[ ] Add response validation
+    - Check that all claims cite a cell
+    - Flag unsubstantiated claims
+    - Optional: reject response if unsupported claims detected
+
+Phase 3: User Interface & Polish (Days 6-7)
+------------------------------------------
+
+UI IMPLEMENTATION
+[ ] Build Gradio app
+    - Upload notebook JSON
+    - Display notebook cells in sidebar
+    - Input box for questions
+    - Output box for agent response (with highlighted citations)
+    - Show retrieved cells (for transparency/debugging)
+
+[ ] Add demo notebook
+    - Create a sample .ipynb with 10-15 cells
+    - Include intentional dependencies
+    - Add annotations/intent comments
+    - Export as JSON
+
+[ ] Test UI with demo
+    - Load demo notebook
+    - Ask 5-10 sample questions
+    - Verify citations are correct
+    - Check that context window is accurate
+
+EVALUATION & TESTING
+[ ] Build evaluation harness
+    - Manual test suite: 20 queries on demo notebook
+    - Score each response:
+      * Relevance (is the answer correct?) [1-5]
+      * Citation accuracy (are cells correctly cited?) [Y/N]
+      * Hallucination (claims not in context?) [Y/N]
+      * Coverage (enough context to answer?) [Y/N]
+    - Log results to CSV
+
+[ ] Run evaluation
+    - Execute manual test suite
+    - Calculate metrics: accuracy %, hallucination %, citation %, coverage %
+    - Document results
+
+[ ] Write README
+    - Overview of what it does
+    - Setup instructions (pip install -r requirements.txt)
+    - How to run UI (python app.py)
+    - Example questions + expected responses
+    - Evaluation results
+    - Limitations + future work
+
+DOCUMENTATION & DEMO
+[ ] Create architecture diagram
+    - Visualize the 6-component pipeline
+    - Include example data flow for a single query
+
+[ ] Record short demo video (optional but powerful)
+    - Upload notebook → ask questions → show citations
+    - 2-3 minutes max
+
+[ ] Prepare for cold email
+    - Add "Why Hex?" section to README
+    - Link to GitHub repo
+    - Include screenshot of UI or output example
+
+Phase 4: Polish & Deployment (Days 8-9)
+---------------------------------------
+
+CODE QUALITY
+[ ] Add unit tests
+    - Test each module independently
+    - Target: 80%+ coverage
+    - Run pytest with coverage report
+
+[ ] Add error handling
+    - Graceful failures if OpenAI API down
+    - Handle malformed notebooks
+    - Handle empty context retrieval
+
+[ ] Code cleanup
+    - Remove debug prints
+    - Add docstrings to all functions
+    - Black/isort for formatting
+
+FINAL CHECKS
+[ ] Test on 2-3 different notebooks
+    - Verify works beyond demo notebook
+    - Check performance (latency, memory)
+    - Test edge cases (very large notebooks, deeply nested dependencies)
+
+[ ] Create cold email draft
+    - Subject: "Context Thread Agent for Hex (live demo inside)"
+    - Body: Explain problem → show solution → link to repo + video
+    - Call to action: "Would love to chat about how this approach aligns with Hex's vision"
+
+[ ] Push to GitHub
+    - Add .gitignore (*.ipynb, .env, __pycache__, .faiss)
+    - Create comprehensive README
+    - Tag as v0.1.0
+
+Phase 5: Optional Enhancements (If Time)
+---------------------------------------
+
+ADVANCED FEATURES
+[ ] Change impact analysis
+    - Query: "If I modify Cell X, what breaks?"
+    - Find all downstream cells
+    - Estimate impact severity
+
+[ ] Context visualization
+    - Graph view of dependencies
+    - Highlight retrieved cells in context
+    - Show context window size
+
+[ ] Export audit trail
+    - Save conversation + citations to document
+    - Useful for documenting analytical decisions
+
+[ ] Multi-notebook support
+    - Handle cross-notebook references
+    - Scope context to single notebook (for MVP)
+
+SUCCESS CRITERIA
+================
+
+MVP (Must Have):
+- [ ] Notebook parser works on standard .ipynb files
+- [ ] Dependency graph correctly identifies cell relationships
+- [ ] FAISS indexing and retrieval works end-to-end
+- [ ] LLM responses cite specific cells
+- [ ] Gradio UI is functional and intuitive
+- [ ] Evaluation metrics show <5% hallucination rate
+- [ ] README is clear and comprehensive
+- [ ] Code is on GitHub with proper structure
+
+Bonus (Nice to Have):
+- [ ] Video demo available
+- [ ] Evaluation results documented
+- [ ] 80%+ test coverage
+- [ ] Deployment to cloud (Hugging Face Spaces / Replit)
+
+TIMELINE ESTIMATE
+=================
+
+Day 1: Setup + data models = 2-3 hours
+Day 2: Parser + dependency graph = 3-4 hours
+Day 3: Intent inference + indexing = 4 hours
+Day 4: Retrieval engine = 3-4 hours
+Day 5: LLM reasoning + citations = 3 hours
+Day 6-7: UI + demo + eval = 6-8 hours
+Day 8-9: Polish + tests + cold email = 4-5 hours
+
+TOTAL: ~34-42 hours of focused work
+
+HOW TO STAY FOCUSED
+===================
+
+✅ DO:
+- Build incrementally (test each phase)
+- Use mock data early (don't wait for real notebooks)
+- Save time by using Gradio (not React/Next.js)
+- Focus on core 5-cell pipeline first
+- Write evaluation script early (measure progress)
+
+❌ DON'T:
+- Over-engineer the UI (Gradio is enough)
+- Optimize performance before testing correctness
+- Handle every edge case (scope to 80/20)
+- Try to integrate with live APIs (mock first)
+- Spend >2 hours on any single component
+
+CRITICAL: Ship incrementally. By Day 5, you should have a working end-to-end pipeline,
+even if the UI is ugly. Polish comes later.
