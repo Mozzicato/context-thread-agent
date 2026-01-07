@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+data/faiss_index.pkl
+data/metadata.db
+data/intent_cache.json
+node_modules/
+.DS_Store
