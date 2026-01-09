@@ -185,66 +185,125 @@ Answer:"""
         query_lower = query.lower()
         
         # Handle specific question types
-        if "what is this notebook about" in query_lower or "what does this notebook do" in query_lower:
+        # Match: "what is this notebook about", "whats the notebook about", "what's this about", etc.
+        if any(phrase in query_lower for phrase in [
+            "what is this notebook about", "what does this notebook", 
+            "whats the notebook", "what's this", "what about this notebook",
+            "what is this about", "describe this notebook", "tell me about this"
+        ]):
             return self._summarize_notebook(retrieval_result)
         
         if "why" in query_lower:
             return self._explain_decision(retrieval_result, query)
         
-        # Default: find relevant code snippets
-        relevant_snippets = []
-        for unit in retrieval_result.units:
-            source_lower = unit.cell.source.lower()
-            if any(word in query_lower.split() for word in ['what', 'how', 'why', 'when', 'where']):
-                relevant_snippets.append(unit.cell.source[:100])
-        
-        if relevant_snippets:
-            return f"Based on the notebook content: {'; '.join(relevant_snippets[:3])}"
+        # Default: find relevant code snippets and summarize all units
+        if retrieval_result.units:
+            return self._summarize_notebook(retrieval_result)
         
         return "I couldn't find specific information about that in the notebook context."
     
     def _summarize_notebook(self, retrieval_result: RetrievalResult) -> str:
-        """Generate a summary of what the notebook is about."""
-        intents = []
+        """Generate a comprehensive summary of what the notebook is about."""
         data_sources = []
+        data_operations = []
         models = []
+        metrics = []
         visualizations = []
+        code_cells = 0
+        markdown_cells = 0
         
         for unit in retrieval_result.units:
             intent = unit.intent.lower() if unit.intent else ""
             source = unit.cell.source.lower()
             
-            if "load data" in intent or "read" in source:
+            if unit.cell.cell_type == "code":
+                code_cells += 1
+            elif unit.cell.cell_type == "markdown":
+                markdown_cells += 1
+            
+            # Data loading/sources
+            if "load data" in intent or "read" in source or "dataset" in source:
                 if "iris" in source:
                     data_sources.append("Iris dataset")
-                elif "csv" in source:
-                    data_sources.append("CSV file")
+                elif "csv" in source or "pd.read_csv" in source:
+                    data_sources.append("CSV data files")
+                elif "excel" in source or "xlsx" in source:
+                    data_sources.append("Excel spreadsheets")
                 else:
-                    data_sources.append("external data")
+                    data_sources.append("external datasets")
             
+            # Data operations
+            if "preprocess" in intent or "clean" in source or "drop" in source:
+                data_operations.append("data cleaning and preprocessing")
+            if "filter" in source or "select" in source:
+                data_operations.append("data filtering")
+            if "merge" in source or "join" in source:
+                data_operations.append("data merging")
+            
+            # Models
             if "model" in intent or "fit" in source or "train" in source:
                 if "randomforest" in source:
                     models.append("Random Forest classifier")
                 elif "regression" in source:
                     models.append("regression model")
+                elif "neural" in source or "nn" in source:
+                    models.append("neural network")
                 else:
                     models.append("machine learning model")
             
-            if "visualize" in intent or "plot" in source:
-                visualizations.append("data visualization")
+            # Evaluation metrics
+            if "accuracy" in source or "precision" in source or "recall" in source or "f1" in source:
+                metrics.append("classification metrics")
+            if "rmse" in source or "mse" in source:
+                metrics.append("regression metrics")
+            if "auc" in source or "roc" in source:
+                metrics.append("ROC/AUC analysis")
+            
+            # Visualizations
+            if "visualize" in intent or "plot" in source or "matplotlib" in source or "seaborn" in source:
+                if "scatter" in source:
+                    visualizations.append("scatter plots")
+                elif "hist" in source:
+                    visualizations.append("histograms")
+                elif "bar" in source:
+                    visualizations.append("bar charts")
+                else:
+                    visualizations.append("data visualizations")
         
-        summary_parts = []
-        if data_sources:
-            summary_parts.append(f"This notebook analyzes {', '.join(set(data_sources))}")
-        if models:
-            summary_parts.append(f"using {', '.join(set(models))}")
-        if visualizations:
-            summary_parts.append("and creates visualizations")
+        # Build comprehensive summary
+        summary = []
         
-        if summary_parts:
-            return " ".join(summary_parts) + "."
+        # Main purpose
+        if data_sources and models:
+            summary.append(f"This is a machine learning notebook that analyzes {', '.join(set(data_sources))}")
+        elif data_sources:
+            summary.append(f"This notebook analyzes {', '.join(set(data_sources))}")
+        elif models:
+            summary.append("This notebook demonstrates machine learning model development and evaluation")
         else:
-            return "This appears to be a data analysis notebook with machine learning components."
+            summary.append("This is a data analysis notebook")
+        
+        # Data operations
+        if data_operations:
+            summary.append(f"It includes {', '.join(set(data_operations))}")
+        
+        # Models and evaluation
+        if models or metrics:
+            model_desc = f"Uses {', '.join(set(models))}" if models else "Includes model training"
+            if metrics:
+                model_desc += f" with {', '.join(set(metrics))}"
+            summary.append(model_desc)
+        
+        # Visualizations
+        if visualizations:
+            summary.append(f"Includes {', '.join(set(visualizations))} for data exploration and results visualization")
+        
+        # Notebook structure
+        total_cells = code_cells + markdown_cells
+        if total_cells > 0:
+            summary.append(f"\n**Notebook Structure:** {code_cells} code cells, {markdown_cells} documentation cells")
+        
+        return ". ".join(summary) + "."
     
     def _explain_decision(self, retrieval_result: RetrievalResult, query: str) -> str:
         """Explain why certain decisions were made."""
@@ -263,9 +322,13 @@ Answer:"""
         if num_units == 0:
             return 0.0
         
-        # Simple formula: more citations = higher confidence
+        # If we have units but no explicit citations, give baseline confidence (0.7)
+        if num_citations == 0 and num_units > 0:
+            return 0.7
+        
+        # With citations, confidence increases
         base_confidence = min(num_citations / max(num_units, 1), 1.0)
-        return base_confidence
+        return max(base_confidence, 0.7)
 
 
 class ContextualAnsweringSystem:

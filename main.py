@@ -7,6 +7,11 @@ Handles CLI commands: run-ui, download-notebooks, evaluate
 import sys
 import argparse
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file explicitly from project root
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
