@@ -1,0 +1,49 @@
+# Exclude development and local files
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Exclude local data and cache files
+data/
+*.db
+*.pkl
+*.json
+!demo_files/  # Keep demo files
+
+# Exclude IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Exclude OS files
+.DS_Store
+Thumbs.db
+
+# Keep essential files
+!requirements.txt
+!app.py
+!README.md
+!src/
+!ui/
+!demo_files/

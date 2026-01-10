@@ -10,6 +10,7 @@
    - License: `mit`
    - Space SDK: **Gradio**
    - Visibility: **Public**
+   - Hardware: **CPU Basic** (or GPU if you need it)
 
 2. **Clone the space repo**
    ```bash
@@ -19,12 +20,12 @@
 
 3. **Copy files from this repo**
    ```bash
-   # From context-thread-agent directory, copy everything needed:
-   cp -r src/* ../context-thread-agent/src/
-   cp -r ui/* ../context-thread-agent/ui/
-   cp -r data/sample_notebooks ../context-thread-agent/data/
-   cp main.py requirements.txt ..context-thread-agent/
-   cp .env ../context-thread-agent/
+   # From your local context-thread-agent directory, copy everything needed:
+   cp -r src/* ../YOUR_SPACE_NAME/src/
+   cp -r ui/* ../YOUR_SPACE_NAME/ui/
+   cp -r demo_files/* ../YOUR_SPACE_NAME/demo_files/
+   cp main.py requirements.txt app.py ../YOUR_SPACE_NAME/
+   cp .hfignore ../YOUR_SPACE_NAME/
    ```
 
 4. **Set Secrets in Hugging Face**
@@ -32,22 +33,87 @@
    - Add:
      ```
      GROQ_API_KEY: YOUR_GROQ_API_KEY_HERE
-     OPENAI_API_KEY: (your OpenAI key if available)
      ```
+   - **⚠️ IMPORTANT:** Do NOT commit `.env` file - use Space secrets instead!
 
-5. **Create app.py entry point**
+5. **Commit and push**
    ```bash
-   # Create file: app.py
-   import subprocess
-   import sys
-   
-   if __name__ == "__main__":
-       # Launch UI
-       subprocess.run([sys.executable, "main.py", "ui", "--port", "7860"])
+   cd ../YOUR_SPACE_NAME
+   git add .
+   git commit -m "Deploy Context Thread Agent"
+   git push
    ```
 
-6. **Commit and push**
-   ```bash
+6. **Your app will be live at:** `https://huggingface.co/spaces/YOUR_USERNAME/context-thread-agent`
+
+---
+
+### Option 2: Using Hugging Face CLI
+
+```bash
+# Install CLI
+pip install huggingface_hub
+
+# Login
+huggingface-cli login
+
+# Create space
+huggingface-cli repo create context-thread-agent --type space --space-sdk gradio
+
+# Clone and setup (same as steps 2-5 above)
+```
+
+---
+
+## ⚙️ Configuration
+
+### Required Secrets
+Set these in your Space → Settings → Secrets and variables:
+
+- `GROQ_API_KEY`: Your Groq API key (required for AI features)
+
+### Optional Secrets
+- `OPENAI_API_KEY`: Fallback if Groq is unavailable
+- `HUGGINGFACE_HUB_TOKEN`: For downloading models
+
+### Hardware Requirements
+- **CPU Basic**: Sufficient for most notebooks
+- **CPU Upgrade**: For very large notebooks (>100MB)
+- **GPU**: Only if you add custom ML models
+
+---
+
+## 🔧 Troubleshooting
+
+### App won't start
+- Check Space logs in Settings → Running
+- Ensure all files are committed (especially `app.py`)
+- Verify secrets are set correctly
+
+### Import errors
+- Make sure `src/` and `ui/` directories are copied
+- Check `requirements.txt` has all dependencies
+
+### Groq not working
+- Verify `GROQ_API_KEY` secret is set in Space settings
+- Check Space logs for API errors
+
+---
+
+## 📁 File Structure for Spaces
+
+```
+your-space-repo/
+├── app.py              # Entry point (runs the Gradio app)
+├── requirements.txt    # Python dependencies
+├── src/               # Core logic
+├── ui/                # Gradio interface
+├── demo_files/        # Sample notebooks
+├── .hfignore         # Exclude unnecessary files
+└── README.md         # Space description
+```
+
+**Note:** `.env` file is NOT included - secrets go in Space settings!
    git add -A
    git commit -m "Deploy Phase 3 Context Thread Agent"
    git push
